@@ -1,0 +1,26 @@
+{
+	"table": {
+		"users": [
+			"id int(11) not null",
+			"name varchar(50) not null",
+			"email varchar(50) not null",
+			"password varchar(50) not null",
+			"created_at TIMESTAMP not null"
+		],
+		"posts": [
+			"id int(11) not null",
+			"user_id int(11) not null",
+			"title varchar(255) not null",
+			"body text not null",
+			"created_at TIMESTAMP not null"
+		]
+	},
+	"attribute": {
+		"PRIMARY": [
+			"users.id"
+		],
+		"FOREIGN": [
+			"posts.user_id=>users.id"
+		]
+	}
+}
