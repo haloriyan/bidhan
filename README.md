@@ -13,7 +13,7 @@ git clone https://github.com/haloriyan/bidhan
 Run PHP built-in server inside `public/` folder
 
 ```
-cd bidhan/public/ && php -S localhost:{PORT}
+php -S localhost:{PORT} -t public/
 ```
 
 and make sure your `BASE_URL` value in `.env` has same port as you used while starting server
