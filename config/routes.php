@@ -4,5 +4,8 @@ return [
     '/' => function() {
         return view('welcome');
     },
-    'est/{name}' => "GET:UserController@test"
+    'form' => function() {
+        return view('form');
+    },
+    'action' => "POST:UserController@action"
 ];
