@@ -59,7 +59,8 @@ function route($path = NULL, $params = NULL) {
 		}
 	}
 	if ($path != NULL) {
-		return base_url().$path;
+		$baseUrl = substr(base_url(), -1) == "/" ? base_url() : base_url()."/";
+		return $baseUrl.$path;
 	}
 	return $currentPath;
 }

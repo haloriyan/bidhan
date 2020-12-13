@@ -23,16 +23,28 @@ class Storage {
 		$newFile = "../storage/".$destination;
 		return rename($file, $newFile);
     }
-    public function store($destination, $filename) {
+    public function store($destination, $file, $overrideName = NULL) {
 		global $rootPath;
-		$tmpName = $filename['tmp_name'];
+		$tmpName = $file['tmp_name'];
 
 		$finalDestination = $rootPath."/".$destination;
 		if (!file_exists($finalDestination)) {
 			mkdir($finalDestination, 0777);
 		}
 
-		$name = $filename['name'];
+		$name = $overrideName ? $overrideName : $file['name'];
+		return move_uploaded_file($tmpName, $finalDestination."/".$name);
+    }
+    public function storeEach($destination, $file, $i, $overrideName = NULL) {
+		global $rootPath;
+		$tmpName = $file['tmp_name'][$i];
+		
+		$finalDestination = $rootPath."/".$destionation;
+		if (!file_exists($finalDestination)) {
+			mkdir($finalDestination, 0777);
+		}
+
+		$name = $overrideName ? $overrideName : $file['name'][$i];
 		return move_uploaded_file($tmpName, $finalDestination."/".$name);
     }
     public function delete($params) {
