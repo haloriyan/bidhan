@@ -39,7 +39,7 @@ class Storage {
 		global $rootPath;
 		$tmpName = $file['tmp_name'][$i];
 		
-		$finalDestination = $rootPath."/".$destionation;
+		$finalDestination = $rootPath."/".$destination;
 		if (!file_exists($finalDestination)) {
 			mkdir($finalDestination, 0777);
 		}
