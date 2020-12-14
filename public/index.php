@@ -20,7 +20,7 @@ global $currentPath;
 $role = @$_GET['role'];
 $bag = @$_GET['bag'];
 if ($role == "" or $bag == "") {
-	$currentPath = ltrim($_SERVER['REQUEST_URI'], '/');
+	$currentPath = explode("?", ltrim($_SERVER['REQUEST_URI'], '/'))[0];
 }else {
 	$currentPath = $role."/".$bag;
 }
@@ -40,12 +40,34 @@ if ($_GET) {
 	$paramsToView = [];
 	foreach ($_GET as $key => $value) {
 		if (isBase64Encoded($value)) {
-			$paramsToView[$key] = base64_decode($value);
-		}else {
-			$paramsToView[$key] = $value;
+			$value = base64_decode($value);
 		}
+		if ($key == "errors") {
+			$value = json_decode($value, true);
+		}
+		$paramsToView[$key] = $value;
 	}
 }
+
+function bindParams() {
+	global $paramsToView;
+	$params = explode("&", $_SERVER['QUERY_STRING']);
+	foreach ($params as $param) {
+		$key = explode("=", $param)[0];
+		$value = ltrim(substr($param, strlen($key)), "=");
+		if (isBase64Encoded($value)) {
+			$value = base64_decode($value);
+		}
+		if ($key == "errors") {
+			$value = json_decode($value, true);
+		}
+
+		$paramsToView[$key] = $value;
+		$_GET[$key] = $value;
+	}
+	return $params;
+}
+bindParams();
 
 function base_url() {
     return env('BASE_URL');
@@ -119,7 +141,7 @@ function insert($file, $params = NULL) {
 }
 function redirect($path, $params = NULL) {
 	$baseUrl = substr(base_url(), -1) == "/" ? base_url() : base_url()."/";
-	$full = $baseUrl.$path;
+	$full = explode("?", $baseUrl.$path)[0];
 	if ($params != NULL) {
 		$full .= "?isRedirected=1";
 		foreach ($params as $key => $value) {
@@ -135,6 +157,7 @@ $queueRoute = [];
 function parsePath($path, $toRemove = NULL) {
 	$ret = [];
 	$indexToRemove = [];
+	$processedPath = [];
 	$p = explode("/", $path);
 	$i = 0;
 	foreach ($p as $key => $value) {
@@ -147,6 +170,7 @@ function parsePath($path, $toRemove = NULL) {
 				array_push($indexToRemove, $iPP);
 			}
 		}
+		array_push($processedPath, explode("?", $value)[0]);
 	}
 	if ($toRemove != NULL) {
 		$i = 0;
@@ -160,7 +184,7 @@ function parsePath($path, $toRemove = NULL) {
 		$url = chop($url, "/");
 		$url = trim($url, "/");
 	}
-	return ['url' => $url, 'params' => $indexToRemove, 'path' => $p];
+	return ['url' => $url, 'params' => $indexToRemove, 'path' => $processedPath];
 }
 
 $a = 0;
@@ -168,6 +192,7 @@ foreach ($routes as $path => $callback) {
 	$aPP = $a++;
 	$parsedPath = parsePath($path);
 	$parsedCurrentPath = parsePath($currentPath, $parsedPath['params']);
+	$parsedCurrentPath['url'] = explode("?", $parsedCurrentPath['url'])[0];
 	
 	if ($parsedCurrentPath['url'] == $parsedPath['url']) {
 		if (gettype($callback) == "string") {
@@ -183,7 +208,8 @@ foreach ($routes as $path => $callback) {
 			
 			$toPass = [];
 			foreach ($params as $key => $param) {
-				array_push($toPass, $p[$param]);
+				$value = explode("?", $p[$param])[0];
+				array_push($toPass, $value);
 			}
 			array_push($toPass, new App\Framework\Request);
 
@@ -215,6 +241,10 @@ foreach ($routes as $path => $callback) {
 			}
 			break;
 		}else {
+			// deleting parameter when refreshed
+			if ($lastOpenedRoute == $currentPath && @$_GET['isRedirected'] == 1) {
+				redirect($currentPath);
+			}
 			return $callback();
 		}
 	}else {
