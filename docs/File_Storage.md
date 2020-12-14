@@ -18,7 +18,10 @@ public function register() {
 }
 ```
 
-## store($subFolder `string`, $_FILES['fileName'])
+## store($subFolder `string`, $_FILES['fileName']) (depracated)
+
+> This method has been depracated. Please use file() on Request instead.
+
 After define the disk that will be used, now we can store any file into it using `store()` method.
 
 ```php

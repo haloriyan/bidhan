@@ -4,13 +4,19 @@ Bidhan (stands for Because I Don't Have a Name) is a mini PHP Framework with foc
 
 ## Installation
 
-Clone this repository into your local machine
+1. Clone this repository into your local machine
 
 ```
 git clone https://github.com/haloriyan/bidhan
 ```
 
-Run PHP built-in server inside `public/` folder
+2. Rename `.env.example` to `.env` and change environment configuration as yours.
+
+```
+mv .env.example .env && vim .env
+```
+
+3. Run PHP built-in server inside `public/` folder
 
 ```
 php -S localhost:{PORT} -t public/
@@ -44,3 +50,7 @@ Contribute and join into open-source community by reporting some issues that app
 ## License
 
 Bidhan is open-sourced software licensed under the MIT license.
+
+## Become a Patron
+
+If you don't mind you can buy me a cup coffee to accompany when I code via [Karyakarsa @belajarngewebid](https://karyakarsa.com/belajarngewebid) or [Trakteer @haloriyan](https://trakteer.id/haloriyan)

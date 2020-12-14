@@ -4,15 +4,15 @@
 You have to define all of your routes in `/config/routes.php` file. If you open it up, you will see some value of array kind of this
 
 ```php
-$routes = [
+return [
     'PATH' => 'CALLBACK'
 ];
 ```
 
-The key of $routes is URI path of your request. For an example, you want to http://localhost/hotel/public/user/login to handle login, so here the code must written
+The key of routes array is URI path of your request. For an example, you want to http://localhost/hotel/public/user/login to handle login, so here the code must written
 
 ```php
-$routes = [
+return [
     'user/login' => 'CALLBACK'
 ];
 ```
@@ -21,14 +21,14 @@ and for the callback, you have two options, it can be a closure to run a process
 
 ```php
 // with closure
-$routes = [
+return [
     'user/login' => function() {
         return view('loginPage');
     }
 ];
 
 // with controller
-$routes = [
+return [
     'user/login' => "GET:UserController@loginPage"
 ];
 ```
@@ -43,5 +43,22 @@ When you need to call your in view, you can use route() function, and use route 
 <form action="<?= route('user/register') ?>" method="POST">
     <-- Form element -->
 </form>
+```
 
+## With Parameters
 
+In `/config/routes.php` route's path, you can add some URL parameter and pass it to your controller
+
+```php
+// routes.php
+return [
+    'user/{username}' => "GET:UserController@profile"
+]
+
+// UserController.php
+public function profile($username) {
+    echo "This user's username is $username";
+}
+```
+
+of course you can add multiple parameters.
