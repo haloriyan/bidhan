@@ -40,12 +40,13 @@ class Auth {
         }
 
         $attemptingLogin = DB::table($guard['table'])->select(implode($criteriaKey, ","))->where($criteria)->get();
-        if ($attemptingLogin) {
+        if (count($attemptingLogin) != 0) {
             $authData['guard'][self::$guardianName] = $criteria;
             Session::set('auth_data', $authData);
+            return $authData;
+        }else {
+            return false;
         }
-        
-        return $attemptingLogin;
     }
     public function user() {
         $authData = Session::get('auth_data')['guard'][self::$guardianName];
