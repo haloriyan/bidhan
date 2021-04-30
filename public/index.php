@@ -234,10 +234,10 @@ foreach ($routes as $path => $callback) {
 				if(method_exists($$control, $method)) {
 					$$control->$method(...$toPass);
 				}else {
-					die('Function not found');
+					die('Function <b>'.$method.'</b> not found');
 				}
 			}else {
-				die("Controller not found");
+				die("Controller <b>".$control."</b> not found");
 			}
 			break;
 		}else {

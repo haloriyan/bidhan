@@ -113,12 +113,12 @@ class DB {
         $query .= ", '".date('Y-m-d H:i:s')."'";
         $query .= ")";
 
-        return $this;
+        return mysqli_query($this->koneksi, $query);
     }
     public function delete() {
 		global $query,$tabel;
-        $query  = "DELETE FROM $tabel";
-        return $this;
+        $query = substr($query, 0, 0) . "DELETE FROM $tabel " . substr($query, 1);
+        return mysqli_query($this->koneksi, $query);
     }
 
     public function orWhere($filter, $operator = NULL, $value = NULL) {
@@ -141,17 +141,27 @@ class DB {
     public function where($filter, $operator = NULL, $value = NULL) {
         global $query;
         $adaWhere = $this->checkWhereAvailable($query);
-		$query .= $adaWhere ? " AND" : " WHERE ";
+        $query .= $adaWhere ? " AND" : " WHERE ";
+        
+        $operators = ["=",">",">=","<=","<","LIKE","NOT LIKE"];
         
         if(is_array($filter)) {
             $i = 0;
             $totalFilter = count($filter);
             foreach ($filter as $key => $value) {
-				$separator = $i++ < $totalFilter - 1 ? " AND " : "";
-                $query .= $value[0] . " " . $value[1] . " '" . $value[2] . "'" . $separator;
+                $separator = $i++ < $totalFilter - 1 ? " AND " : "";
+                if (!in_array($value[1], $operators)) {
+                    $query .= $value[0] . " = '" . $value[1] . "'" . $separator;
+                }else {
+                    $query .= $value[0] . " " . $value[1] . " '" . $value[2] . "'" . $separator;
+                }
             }
         }else {
-            $query .= " $filter $operator '$value'";
+            if (!in_array($operator, $operators)) {
+                $query .= " $filter = '$operator'";
+            }else {
+                $query .= " $filter $operator '$value'";
+            }
         }
         return $this;
     }
@@ -220,7 +230,8 @@ class DB {
     public function update($data) {
         global $query;
         global $tabel;
-        $query = "UPDATE $tabel SET ";
+
+        // $query = "UPDATE $tabel SET ";
         $i = 0;
         foreach($data as $key => $value) {
             if (preg_match("/'/", $value)) {
@@ -233,9 +244,13 @@ class DB {
                 $quote = "'";
             }
 			$separator = $i++ < count($data) - 1 ? ", " : "";
-            $query .= "$key = $quote$value$quote" . $separator;
+            // $query .= "$key = $quote$value$quote" . $separator;
+
+            $query = substr($query, 0, 1) . "$key = $quote$value$quote $separator " . substr($query, 1);
         }
-        return $this;
+
+        $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
+        return mysqli_query($this->koneksi, $query);
     }
     public function toSql() {
 		global $query;
@@ -277,8 +292,29 @@ class DB {
 	public function toObject($datas) {
 		return json_decode(json_encode($datas), FALSE);
     }
-    public function get() {
-        global $query,$res,$withWith;
+    public function get($toSelect = null) {
+        global $query,$res,$withWith,$tabel;
+        
+        $kolom = func_get_args();
+		$printCol = "";
+		if (count($kolom) == 1) {
+			$printCol = $kolom[0];
+		}
+		if (count($kolom) == 0) {
+			$printCol = "*";
+		}
+
+		if (count($kolom) > 1) {
+			$i = 0;
+			foreach ($kolom as $key => $kol) {
+				$separator = $i++ < count($kolom) - 1 ? "," : "";
+				$printCol .= "$kol".$separator;
+			}
+        }
+        
+        $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
+        // return $query;
+        
         $runQuery = mysqli_query($this->koneksi, $query);
         $res = [];
         while($data = mysqli_fetch_assoc($runQuery)) {
