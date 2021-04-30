@@ -390,4 +390,21 @@ class DB {
         // $query = "";
         return $this->toObject($data);
     }
+
+    public function increment($column, $counter = 1) {
+        global $query,$tabel;
+
+        $query = substr($query, 0, 1) . "$column = $column + $counter " . substr($query, 1);
+        $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
+        
+        return mysqli_query($this->koneksi, $query);
+    }
+    public function decrement($column, $counter = 1) {
+        global $query,$tabel;
+
+        $query = substr($query, 0, 1) . "$column = $column - $counter " . substr($query, 1);
+        $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
+        
+        return mysqli_query($this->koneksi, $query);
+    }
 }
