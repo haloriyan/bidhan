@@ -4,14 +4,18 @@ namespace App\Framework;
 class DB {
     private static $_instance = null;
     private static $queueWith = [];
+    private static $newQueueWith = [];
     public static $collections = [];
     public static $paginationLinks = [];
+    public static $calledClass = null;
+
+    public static $koneksi;
     
     public function __construct() {
         $this->koneksi();
     }
 	
-	public function koneksi() {
+	public static function koneksi() {
 		/* You can edit this on /.env */
 		global $dbHost,$dbUser,$dbPass,$dbName;
 		$dbHost = env('DB_HOST');
@@ -19,7 +23,7 @@ class DB {
         $dbPass = env('DB_PASS');
 		$dbName = env('DB_NAME');
 		
-        $this->koneksi = new \mysqli($dbHost, $dbUser, $dbPass, $dbName);
+        self::$koneksi = new \mysqli($dbHost, $dbUser, $dbPass, $dbName);
 	}
 	
 	/*
@@ -87,6 +91,11 @@ class DB {
         global $query;
         global $tabel;
 
+        if (self::$koneksi == null) {
+            self::koneksi();
+        }
+        self::checkIfTableStillNull();
+
         $query = "INSERT INTO $tabel (";
         $i = 0;
         foreach($data as $key => $value) {
@@ -113,16 +122,24 @@ class DB {
         $query .= ", '".date('Y-m-d H:i:s')."'";
         $query .= ")";
 
-        return mysqli_query($this->koneksi, $query);
+        $savingData = mysqli_query(self::$koneksi, $query);
+        if ($savingData) {
+            $lastInsertedID = mysqli_insert_id(self::$koneksi);
+            $queryGetLatest = mysqli_query(self::$koneksi, "SELECT * FROM " . $tabel . " WHERE id = " .$lastInsertedID);
+            return mysqli_fetch_assoc($queryGetLatest);
+        }
+        return false;
     }
     public function delete() {
-		global $query,$tabel;
+        global $query,$tabel;
+        self::checkIfTableStillNull();
         $query = substr($query, 0, 0) . "DELETE FROM $tabel " . substr($query, 1);
-        return mysqli_query($this->koneksi, $query);
+        return mysqli_query(self::$koneksi, $query);
     }
 
     public function orWhere($filter, $operator = NULL, $value = NULL) {
         global $query;
+        self::checkIfTableStillNull();
 
         $query .= " OR ";
         
@@ -136,12 +153,17 @@ class DB {
         }else {
             $query .= " $filter $operator '$value'";
         }
-        return $this;
+        if(self::$_instance === null) {
+            self::$_instance = new self;
+        }
+        return self::$_instance;
     }
-    public function where($filter, $operator = NULL, $value = NULL) {
+    public static function where($filter, $operator = NULL, $value = NULL) {
         global $query;
-        $adaWhere = $this->checkWhereAvailable($query);
+        $adaWhere = self::checkWhereAvailable($query);
         $query .= $adaWhere ? " AND" : " WHERE ";
+
+        self::checkIfTableStillNull();
         
         $operators = ["=",">",">=","<=","<","LIKE","NOT LIKE"];
         
@@ -163,11 +185,14 @@ class DB {
                 $query .= " $filter $operator '$value'";
             }
         }
-        return $this;
+        if(self::$_instance === null) {
+            self::$_instance = new self;
+        }
+        return self::$_instance;
     }
     public function whereBetween($kolom, $value) {
         global $query;
-        $adaWhere = $this->checkWhereAvailable($query);
+        $adaWhere = self::checkWhereAvailable($query);
         if($adaWhere) {
             $query .= " AND $kolom BETWEEN '$value[0]' AND '$value[1]'";
         }else {
@@ -223,7 +248,7 @@ class DB {
 
     public function execute() {
         global $query;
-        $res = mysqli_query($this->koneksi, $query);
+        $res = mysqli_query(self::$koneksi, $query);
         return $res;
     }
 
@@ -231,7 +256,8 @@ class DB {
         global $query;
         global $tabel;
 
-        // $query = "UPDATE $tabel SET ";
+        self::checkIfTableStillNull();
+
         $i = 0;
         foreach($data as $key => $value) {
             if (preg_match("/'/", $value)) {
@@ -244,30 +270,76 @@ class DB {
                 $quote = "'";
             }
 			$separator = $i++ < count($data) - 1 ? ", " : "";
-            // $query .= "$key = $quote$value$quote" . $separator;
 
             $query = substr($query, 0, 1) . "$key = $quote$value$quote $separator " . substr($query, 1);
         }
 
         $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
-        return mysqli_query($this->koneksi, $query);
+        $updatingData = mysqli_query(self::$koneksi, $query);
+        if ($updatingData) {
+            $lastAffectedID = mysqli_affected_rows(self::$koneksi);
+            $getUpdatedData = mysqli_query(self::$koneksi, "SELECT * FROM " . $tabel . " WHERE id = " . $lastAffectedID);
+            return mysqli_fetch_assoc($getUpdatedData);
+        }
+        return false;
     }
     public function toSql() {
 		global $query;
 		return $query;
 	}
     public function first() {
-        global $query;
-        $runQuery = mysqli_query($this->koneksi, $query);
+        global $query,$tabel;
+        $kolom = func_get_args();
+		$printCol = "";
+		if (count($kolom) == 1) {
+			$printCol = $kolom[0];
+		}
+		if (count($kolom) == 0) {
+			$printCol = "*";
+		}
+
+		if (count($kolom) > 1) {
+			$i = 0;
+			foreach ($kolom as $key => $kol) {
+				$separator = $i++ < count($kolom) - 1 ? "," : "";
+				$printCol .= "$kol".$separator;
+			}
+        }
+
+        $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
+
+        $runQuery = mysqli_query(self::$koneksi, $query);
 		$data = mysqli_fetch_assoc($runQuery);
 		if (!$data) return false;
         $query = "";
         
-        if (count(self::$queueWith) != 0) {
-            $data = $this->doRelationJob($data);
+        if (count(self::$newQueueWith) != 0) {
+            $data = $this->doRelationJobNew($data);
         }
 
-		return $this->toObject($data);
+		return self::toObject($data);
+    }
+    public function doRelationJobNew($data) {
+        global $tabel;
+        foreach (self::$newQueueWith as $queue) {
+            $foreignClass = $queue['foreignClass'];
+            $foreignKey = $queue['foreignKey'];
+            $relationshipType = $queue['relationshipType'];
+            $tabel = $queue['foreignTable'];
+
+            $ret = $foreignClass::where($foreignKey, $data['id']);
+            $tesQuery = "SELECT * FROM " . $tabel . " WHERE " . $foreignKey . " = " . $data['id'];
+            $runQueryRelation = self::query($tesQuery);
+
+            while ($row = mysqli_fetch_assoc($runQueryRelation)) {
+                if ($relationshipType == "hasMany") {
+                    $data[$queue['methodCaller']][] = $row;
+                }else if ($relationshipType == "belongsTo" || $relationshipType == "hasOne") {
+                    $data[$queue['methodCaller']] = $row;
+                }
+            }
+        }
+        return $data;
     }
     public function doRelationJob($data) {
         foreach (self::$queueWith as $row) {
@@ -285,15 +357,26 @@ class DB {
                 }
                 $queryWith .= "$key = $quote$value$quote";
             }
-            $data[$row[0]] = $this->query($this->koneksi, $queryWith);
+            $data[$row[0]] = $this->query(self::$koneksi, $queryWith);
         }
         return $data;
     }
-	public function toObject($datas) {
+	public static function toObject($datas) {
 		return json_decode(json_encode($datas), FALSE);
+    }
+    public static function checkIfTableStillNull() {
+        global $tabel;
+        if ($tabel == null) {
+            self::$calledClass = get_called_class();
+            Model::getTableName(self::$calledClass);
+        }
     }
     public function get($toSelect = null) {
         global $query,$res,$withWith,$tabel;
+        if (self::$koneksi == null) {
+            self::koneksi();
+        }
+        self::checkIfTableStillNull();
         
         $kolom = func_get_args();
 		$printCol = "";
@@ -313,27 +396,29 @@ class DB {
         }
         
         $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
-        // return $query;
         
-        $runQuery = mysqli_query($this->koneksi, $query);
+        $runQuery = mysqli_query(self::$koneksi, $query);
         $res = [];
         while($data = mysqli_fetch_assoc($runQuery)) {
-            if (count(self::$queueWith) != 0) {
-                $data = $this->doRelationJob($data);
+            // if (count(self::$queueWith) != 0) {
+            //     $data = $this->doRelationJob($data);
+            // }
+            if (count(self::$newQueueWith) != 0) {
+                $data = $this->doRelationJobNew($data);
             }
             $res[] = $data;
         }
         
         self::$queueWith = [];
         $query = "";
-        self::$collections = $this->toObject($res);
-        return $this->toObject($res);
+        self::$collections = self::toObject($res);
+        return self::toObject($res);
     }
     public function paginate($rows) {
         global $query,$res,$withWith,$paginateTotalPages;
         $page = isset($_GET['page']) ? $_GET['page'] : 1;
         $start = ($page > 1) ? ($page * $rows) - $rows : 0;
-        $total = mysqli_num_rows(mysqli_query($this->koneksi, $query));
+        $total = mysqli_num_rows(mysqli_query(self::$koneksi, $query));
         $paginateTotalPages = ceil($total / $rows);
 
         if ($this->isContain("LIMIT", $query)) {
@@ -347,10 +432,10 @@ class DB {
             array_push(self::$paginationLinks, "<a href='?page=$i'>$i</a>");
         }
 
-        // self::$collections = $this->toObject($res);
+        // self::$collections = self::toObject($res);
         // return self::$collections;
         return $this;
-        // return $this->toObject($res);
+        // return self::toObject($res);
     }
     public function links() {
         $page = @$_GET['page'] != "" ? $_GET['page'] : 1;
@@ -376,19 +461,36 @@ class DB {
         }
     }
     
-    public function with($table, $fk) {
+    public function withOld($table, $fk) {
         global $res,$withWith;
         array_push(self::$queueWith, [$table, $fk]);
         return $this;
     }
+    public function with($relationName) {
+        self::checkIfTableStillNull();
+        if (is_array($relationName)) {
+            foreach ($relationName as $relation) {
+                $toPush = self::$calledClass::$relation();
+                array_push(self::$newQueueWith, $toPush);
+            }
+        }else {
+            $relation = self::$calledClass::$relationName();
+            array_push(self::$newQueueWith, $relation);
+        }
+        
+        if(self::$_instance === null) {
+            self::$_instance = new self;
+        }
+        return self::$_instance;
+        // return $this;
+    }
     public function find($id) {
         global $query,$tabel;
         $query .= "SELECT * FROM $tabel WHERE id = '$id'";
-        $runQuery = mysqli_query($this->koneksi, $query);
+        $runQuery = mysqli_query(self::$koneksi, $query);
         $data = mysqli_fetch_assoc($runQuery);
         if (!$data) return false;
-        // $query = "";
-        return $this->toObject($data);
+        return self::toObject($data);
     }
 
     public function increment($column, $counter = 1) {
@@ -397,7 +499,7 @@ class DB {
         $query = substr($query, 0, 1) . "$column = $column + $counter " . substr($query, 1);
         $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
         
-        return mysqli_query($this->koneksi, $query);
+        return mysqli_query(self::$koneksi, $query);
     }
     public function decrement($column, $counter = 1) {
         global $query,$tabel;
@@ -405,6 +507,6 @@ class DB {
         $query = substr($query, 0, 1) . "$column = $column - $counter " . substr($query, 1);
         $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
         
-        return mysqli_query($this->koneksi, $query);
+        return mysqli_query(self::$koneksi, $query);
     }
 }

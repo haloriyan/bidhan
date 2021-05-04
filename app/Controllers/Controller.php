@@ -4,6 +4,8 @@ namespace App\Controllers;
 include '../app/Framework/autoload.php';
 include '../app/Framework/vendor/autoload.php';
 
+use App\Framework\DB;
+
 class Controller {
 	private static $_instance = null;
 

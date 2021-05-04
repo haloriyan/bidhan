@@ -39,7 +39,7 @@ class Auth {
             array_push($criteriaKey, $key);
         }
 
-        $attemptingLogin = DB::table($guard['table'])->select(implode($criteriaKey, ","))->where($criteria)->get();
+        $attemptingLogin = DB::table($guard['table'])->where($criteria)->get(implode($criteriaKey, ","));
         if (count($attemptingLogin) != 0) {
             $authData['guard'][self::$guardianName] = $criteria;
             Session::set('auth_data', $authData);

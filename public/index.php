@@ -1,5 +1,13 @@
 <?php
 
+include '../app/Controllers/autoload.php';
+include '../config/routes.php';
+global $routes;
+use App\Framework\Route;
+use App\Framework\Middleware;
+$routes = Route::render();
+$queueRoute = [];
+
 function env($name) {
     $file = file_get_contents("../.env");
     $file = explode(PHP_EOL, $file);
@@ -72,7 +80,48 @@ bindParams();
 function base_url() {
     return env('BASE_URL');
 }
-function route($path = NULL, $params = NULL) {
+function asset($path) {
+	return base_url() . "/" . $path;
+}
+function route($routeName = NULL, $params = NULL) {
+	global $currentPath,$routes;
+	$baseUrl = substr(base_url(), -1) == "/" ? base_url() : base_url()."/";
+	$queueRouteSearch = [];
+	if ($routeName == NULL) {
+		return $baseUrl.$currentPath;
+	}
+	foreach ($routes as $route) {
+		if ($route['name'] == $routeName || $route['path'] == $routeName) {
+			$path = $route['path'];
+			// getting parameter's name
+			preg_match_all('/{(.*?)}/', $route['path'], $matches);
+			$parameterSearchResult = $matches[1];
+
+			if (gettype($params) != "array") {
+				$params = [$params];
+			}
+
+			if (count($matches[1]) != 0) {
+				if ($params == NULL || count($params) < count($matches[1])) {
+					die("You missed some parameter for <b>".$route['name']."</b> route");
+				}
+				$i = 0;
+				foreach ($params as $param) {
+					$route['path'] = str_replace("{" . $parameterSearchResult[$i++] . "}", $param, $route['path']);
+				}
+			}
+
+			return $baseUrl.$route['path'];
+		} else {
+			array_push($queueRouteSearch, $route['path']);
+		}
+		if (count($queueRouteSearch) == count($routes)) {
+			die("Route not found");
+		}
+	}
+}
+
+function routeOld($path = NULL, $params = NULL) {
 	global $currentPath;
 	if ($params != NULL) {
 		$path .= "?";
@@ -141,6 +190,7 @@ function insert($file, $params = NULL) {
 }
 function redirect($path, $params = NULL) {
 	$baseUrl = substr(base_url(), -1) == "/" ? base_url() : base_url()."/";
+	$baseUrl = array_key_exists(1, explode("://", $path)) ? "" : base_url() . "/";
 	$full = explode("?", $baseUrl.$path)[0];
 	if ($params != NULL) {
 		$full .= "?isRedirected=1";
@@ -150,9 +200,6 @@ function redirect($path, $params = NULL) {
 	}
 	header("location: $full");
 }
-
-$routes = require '../config/routes.php';
-$queueRoute = [];
 
 function parsePath($path, $toRemove = NULL) {
 	$ret = [];
@@ -187,68 +234,64 @@ function parsePath($path, $toRemove = NULL) {
 	return ['url' => $url, 'params' => $indexToRemove, 'path' => $processedPath];
 }
 
-$a = 0;
-foreach ($routes as $path => $callback) {
-	$aPP = $a++;
-	$parsedPath = parsePath($path);
+foreach ($routes as $route) {
+	$parsedPath = parsePath($route['path']);
 	$parsedCurrentPath = parsePath($currentPath, $parsedPath['params']);
-	$parsedCurrentPath['url'] = explode("?", $parsedCurrentPath['url'])[0];
-	
+	$parsedCurrentPath['url'] = explode("?", $parsedCurrentPath['url'])[0]; // for optional parameters
+
 	if ($parsedCurrentPath['url'] == $parsedPath['url']) {
-		if (gettype($callback) == "string") {
-			$e = explode(":", $callback);
-			$HttpRequestMethod = $e[0];
+		if ($_SERVER['REQUEST_METHOD'] != $route['http_method']) {
+			die("HTTP Method supposed to be " . $route['http_method']);
+		}
 
-			$params = $parsedPath['params'];
-			$p = explode("/", $currentPath);
+		if (array_key_exists('middleware', $route)) {
+			Middleware::use($route['middleware']);
+		}
 
-			// getting parameter's name
-			preg_match_all('/{(.*?)}/', $path, $matches);
-			include '../app/Controllers/autoload.php';
-			
-			$toPass = [];
-			foreach ($params as $key => $param) {
-				$value = explode("?", $p[$param])[0];
-				array_push($toPass, $value);
-			}
-			array_push($toPass, new App\Framework\Request);
+		$params = $parsedPath['params'];
+		$p = explode("/", $currentPath);
 
-			if ($_SERVER['REQUEST_METHOD'] != $HttpRequestMethod) {
-				die("Method not allowed");
-			}
-			
-			$p = explode("@", $e[1]);
-			$control = $p[0];
-			$method = $p[1];
-			$controller = "../app/Controllers/".$control.".php";
-			if (file_exists($controller)) {
-				// include all controllers
-				$run = "App\Controllers\\$control";
-				$$control = new $run();
+		// getting parameter's name
+		preg_match_all('/{(.*?)}/', $route['path'], $matches);
+
+		$toPass = [];
+		foreach ($params as $key => $param) {
+			$value = explode("?", $p[$param])[0];
+			array_push($toPass, $value);
+		}
+		array_push($toPass, new App\Framework\Request);
+
+		$action = $route['action'];
+		if (gettype($action) == "string") {
+			$controller = $route['controller'];
+			$controllerFile = "../app/Controllers/" . $controller . ".php";
+			if (file_exists($controllerFile)) {
+				$controllerNamespace = "App\Controllers\\$controller";
+				$$controller = new $controllerNamespace();
 
 				// deleting parameter when refreshed
 				if ($lastOpenedRoute == $currentPath && @$_GET['isRedirected'] == 1) {
-					redirect($currentPath);
+					redirect(route($currentPath));
 				}
-			
-				if(method_exists($$control, $method)) {
-					$$control->$method(...$toPass);
+
+				if (method_exists($$controller, $action)) {
+					$$controller->$action(...$toPass);
 				}else {
-					die('Function <b>'.$method.'</b> not found');
+					die("Function <b>".$action."</b> not found");
 				}
 			}else {
-				die("Controller <b>".$control."</b> not found");
+				die("Controller <b>".$controller."</b> not found");
 			}
-			break;
 		}else {
 			// deleting parameter when refreshed
 			if ($lastOpenedRoute == $currentPath && @$_GET['isRedirected'] == 1) {
-				redirect($currentPath);
+				redirect(route($currentPath));
 			}
-			return $callback();
+			return $action();
 		}
-	}else {
-		array_push($queueRoute, $path);
+		break;
+	} else {
+		array_push($queueRoute, $route['path']);
 	}
 	if (count($queueRoute) == count($routes)) {
 		die("404 Route not found");
