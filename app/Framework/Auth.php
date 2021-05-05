@@ -53,7 +53,7 @@ class Auth {
         $guardians = self::config();
         $guard = $guardians[self::$guardianName];
 
-        $data = DB::table($guard['table'])->select()->where($authData)->first();
+        $data = DB::table($guard['table'])->where($authData)->first();
         if ($data == NULL) {
             self::logout();
         }

@@ -325,7 +325,7 @@ class DB {
             $foreignClass = $queue['foreignClass'];
             $foreignKey = $queue['foreignKey'];
             $relationshipType = $queue['relationshipType'];
-            $tabel = $queue['foreignTable'];
+            $tabel = null;
 
             $ret = $foreignClass::where($foreignKey, $data['id']);
             $tesQuery = "SELECT * FROM " . $tabel . " WHERE " . $foreignKey . " = " . $data['id'];
@@ -333,6 +333,30 @@ class DB {
 
             while ($row = mysqli_fetch_assoc($runQueryRelation)) {
                 if ($relationshipType == "hasMany") {
+                    if (array_key_exists('childRelation', $queue)) {
+                        $childRelation = $queue['childRelation'];
+                        $childClass = $childRelation['foreignClass'];
+                        $childForeignKey = $childRelation['foreignKey'];
+
+                        $tabel = null;
+                        $ret = $childClass::where($childForeignKey, $row['id']);
+                        $childQuery = "SELECT * FROM " . $tabel . " WHERE " . $childForeignKey . " = " . $row['id'];
+                        $runChildQuery = self::query($childQuery);
+
+                        if ($runChildQuery) {
+                            if ($childRelation['relationshipType'] == "hasOne" || $childRelation == "belongsTo") {
+                                $child = mysqli_fetch_assoc($runChildQuery);
+                                $row[$queue['childRelation']['methodCaller']] = $child;
+                            }else {
+                                while ($child = mysqli_fetch_assoc($runChildQuery)) {
+                                    $row[$queue['childRelation']['methodCaller']][] = $child;
+                                }
+                            }
+                        }
+
+                        // $row[$queue['childRelation']['methodCaller']] = $childDatas;
+                        // echo $childDatas->toSql()."<br />";
+                    }
                     $data[$queue['methodCaller']][] = $row;
                 }else if ($relationshipType == "belongsTo" || $relationshipType == "hasOne") {
                     $data[$queue['methodCaller']] = $row;
@@ -469,20 +493,62 @@ class DB {
     public function with($relationName) {
         self::checkIfTableStillNull();
         if (is_array($relationName)) {
-            foreach ($relationName as $relation) {
-                $toPush = self::$calledClass::$relation();
-                array_push(self::$newQueueWith, $toPush);
+            $historyRelation = [];
+            foreach ($relationName as $relationA) {
+                // $toPush = self::$calledClass::$relation();
+                // array_push(self::$newQueueWith, $toPush);
+                $relations = explode(".", $relationA);
+                if (array_key_exists(1, $relations)) {
+                    $i = $historyIndex = 0;
+                    foreach ($relations as $rel) {
+                        // echo $i;
+                        if ($i == 0) {
+                            $relation = self::$calledClass::$rel();
+                            if ($relations[$i + 1] != "") {
+                                $childRelationName = $relations[$i + 1];
+                                $foreignClass = $relation['foreignClass'];
+                                $childRelation = $foreignClass::$childRelationName();
+                                $relation['childRelation'] = $childRelation;
+                            }
+                            $historyRelation = $relation;
+                            $i++;
+                        }
+                    }
+                }else {
+                    $relation = self::$calledClass::$relationA();
+                    $historyRelation = $relation;
+                }
+                array_push(self::$newQueueWith, $historyRelation);
             }
         }else {
-            $relation = self::$calledClass::$relationName();
-            array_push(self::$newQueueWith, $relation);
+            $relations = explode(".", $relationName);
+            if (array_key_exists(1, $relations)) {
+                $i = $historyIndex = 0;
+                $historyRelation = [];
+                foreach ($relations as $rel) {
+                    if ($i == 0) {
+                        $relation = self::$calledClass::$rel();
+                        if ($relations[$i + 1] != "") {
+                            $childRelationName = $relations[$i + 1];
+                            $foreignClass = $relation['foreignClass'];
+                            $childRelation = $foreignClass::$childRelationName();
+                            $relation['childRelation'] = $childRelation;
+                        }
+                        array_push($historyRelation, $relation);
+                        $i++;
+                    }
+                }
+                self::$newQueueWith = $historyRelation;
+            }else {
+                $relation = self::$calledClass::$relationName();
+                array_push(self::$newQueueWith, $relation);
+            }
         }
         
         if(self::$_instance === null) {
             self::$_instance = new self;
         }
         return self::$_instance;
-        // return $this;
     }
     public function find($id) {
         global $query,$tabel;
