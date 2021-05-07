@@ -2,8 +2,6 @@
 
 namespace App\Framework;
 
-include './app/Framework/Route.php';
-
 class Colors {
     private $foreground_colors = [];
     private $background_colors = [];
@@ -133,6 +131,18 @@ class ".$modelName." extends Model {
         echo "Model ". $this->text->write(" " . $modelName . " ", "black", "green") . " has been created in /app/Models/\n";
     }
     public function makeMiddleware($middlewareName) {
+        $content = "<?php
+
+namespace App\Middleware;
+
+use App\Framework\Auth;
+
+class ".$middlewareName." {
+    public function handle() {
+        // 
+    }
+}";
+        $this->generateFile("./app/Middleware/" . $middlewareName . ".php", $content);
         echo "Middleware ". $this->text->write(" " . $middlewareName . " ", "black", "green") . " has been created in /app/Middleware/\n";
     }
 }
