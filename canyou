@@ -1,0 +1,8 @@
+<?php
+
+include './app/Framework/Kernel.php';
+
+use App\Framework\Kernel;
+
+$kernel = new Kernel();
+$kernel->run($argv);

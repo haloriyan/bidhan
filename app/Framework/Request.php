@@ -52,14 +52,16 @@ class Request {
             }
         }
 
-        $params = explode("&", $_SERVER['QUERY_STRING']);
-        foreach ($params as $param) {
-            $key = explode("=", $param)[0];
-            $value = ltrim(substr($param, strlen($key)), "=");
-            if (isBase64Encoded($value)) {
-                $this->{$key} = base64_decode($value);
-            }else {
-                $this->{$key} = $value;
+        if (array_key_exists("QUERY_STRING", $_SERVER)) {
+            $params = explode("&", $_SERVER['QUERY_STRING']);
+            foreach ($params as $param) {
+                $key = explode("=", $param)[0];
+                $value = ltrim(substr($param, strlen($key)), "=");
+                if (isBase64Encoded($value)) {
+                    $this->{$key} = base64_decode($value);
+                }else {
+                    $this->{$key} = $value;
+                }
             }
         }
     }

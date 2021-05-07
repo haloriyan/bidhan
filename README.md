@@ -16,10 +16,10 @@ git clone https://github.com/haloriyan/bidhan
 mv .env.example .env && vim .env
 ```
 
-3. Run PHP built-in server inside `public/` folder
+3. Run the server
 
 ```
-php -S localhost:{PORT} -t public/
+php tolong serve
 ```
 
 and make sure your `BASE_URL` value in `.env` has same port as you used while starting server

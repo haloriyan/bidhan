@@ -59,21 +59,23 @@ if ($_GET) {
 
 function bindParams() {
 	global $paramsToView;
-	$params = explode("&", $_SERVER['QUERY_STRING']);
-	foreach ($params as $param) {
-		$key = explode("=", $param)[0];
-		$value = ltrim(substr($param, strlen($key)), "=");
-		if (isBase64Encoded($value)) {
-			$value = base64_decode($value);
-		}
-		if ($key == "errors") {
-			$value = json_decode($value, true);
-		}
+	if (array_key_exists("QUERY_STRING", $_SERVER)) {
+		$params = explode("&", $_SERVER['QUERY_STRING']);
+		foreach ($params as $param) {
+			$key = explode("=", $param)[0];
+			$value = ltrim(substr($param, strlen($key)), "=");
+			if (isBase64Encoded($value)) {
+				$value = base64_decode($value);
+			}
+			if ($key == "errors") {
+				$value = json_decode($value, true);
+			}
 
-		$paramsToView[$key] = $value;
-		$_GET[$key] = $value;
+			$paramsToView[$key] = $value;
+			$_GET[$key] = $value;
+		}
+		return $params;
 	}
-	return $params;
 }
 bindParams();
 

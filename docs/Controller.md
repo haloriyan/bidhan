@@ -1,49 +1,25 @@
 # Controller
 
-Like another framework, controller is the place where you doing any process that needed before shown in view. Because many framework has controller system, it will not much text in here.
+Controller is the place where you do any necesary process before the datas shown to view. Please open your google if you still did not understand about controller.
 
-## Create new Controller
+### Generating controller
 
-You have to create a new file manually into /app/Controllers/ directory. For name, we follow laravel controller namign convention, use PascalCase and ended with "Controller" word. Example : UserController and obviously with .php file extension.
+Every you need new controller, just generate it by running `canyou` command
 
-Basic controller's script :
+> php canyou make:controller UserController
+
+then your new controller will appear in `/app/Controllers/`
+
+### Collaborate with other controller
+
+The bidhan system has been implemented with autoloading all your controllers. You just need to add `use` keyword to call the controller you need.
+
 ```php
-<?php
-
-namespace App\Controllers;
+use App\Controllers\BookController;
 
 class UserController {
-    //
-}
-
-```
-
-## Call the other controller
-
-If you need another controller inside your controller, you can call them with `use` keyword.
-
-```php
-<?php
-
-namespace App\Controllers;
-
-use App\Controllers\UserController as UserCtrl;
-
-class PostController {
-    public function publish() {
-        /*
-         * another publishing process here
-         */
-
-        $isUserCanPosting = UserCtrl::postingAbility($user->id);
-        if (!$isUserCanPosting) {
-            redirect('dashboard', [
-                'message' => "Sorry you don't have ability to publishing post"
-            ]);
-        }
+    public function myBooks() {
+        $myBooks = BookController::mine();
     }
 }
-
 ```
-
-You can use alias for your controller or not depends on your preference.
