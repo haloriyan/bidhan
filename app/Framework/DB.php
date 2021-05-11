@@ -328,7 +328,11 @@ class DB {
             $tabel = null;
 
             $ret = $foreignClass::where($foreignKey, $data['id']);
-			$tesQuery = "SELECT * FROM " . $tabel . " WHERE id = " . $data[$foreignKey];
+			if ($relationshipType == "belongsTo") {
+                $tesQuery = "SELECT * FROM " . $tabel . " WHERE id = " . $data[$foreignKey];
+            }else {
+                $tesQuery = "SELECT * FROM " . $tabel . " WHERE ".$foreignKey." = " . $data['id'];
+            }
             $runQueryRelation = self::query($tesQuery);
 
             while ($row = mysqli_fetch_assoc($runQueryRelation)) {
