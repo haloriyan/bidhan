@@ -269,7 +269,7 @@ class DB {
             }else {
                 $quote = "'";
             }
-			$separator = $i++ < count($data) - 1 ? ", " : "";
+			$separator = $i++ < count($data) - 1 ? "" : ", ";
 
             $query = substr($query, 0, 1) . "$key = $quote$value$quote $separator " . substr($query, 1);
         }
@@ -328,7 +328,7 @@ class DB {
             $tabel = null;
 
             $ret = $foreignClass::where($foreignKey, $data['id']);
-            $tesQuery = "SELECT * FROM " . $tabel . " WHERE " . $foreignKey . " = " . $data['id'];
+			$tesQuery = "SELECT * FROM " . $tabel . " WHERE id = " . $data[$foreignKey];
             $runQueryRelation = self::query($tesQuery);
 
             while ($row = mysqli_fetch_assoc($runQueryRelation)) {
