@@ -82,5 +82,16 @@ class Route {
         $callback();
         self::$prefix = null;
         self::$middlewareGroup = null;
+	}
+	public function currentRouteName() {
+	    global $currentPath;
+	    $routes = Route::render();
+
+	    foreach ($routes as $route) {
+		    if ($route['path'] == $currentPath) {
+			    return $route['name'];
+            }
+        }
+        return false;
     }
 }

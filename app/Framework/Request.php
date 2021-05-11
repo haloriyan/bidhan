@@ -48,7 +48,7 @@ class Request {
         // Handle get params
         foreach($_GET as $key => $value) {
             if ($key != "lokasiItuUntukDefaultParam") {
-                $this->{$key} = $value;
+                $this->{$key} = urldecode($value);
             }
         }
 
@@ -60,7 +60,7 @@ class Request {
                 if (isBase64Encoded($value)) {
                     $this->{$key} = base64_decode($value);
                 }else {
-                    $this->{$key} = $value;
+                    $this->{$key} = urldecode($value);
                 }
             }
         }
