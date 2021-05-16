@@ -154,6 +154,13 @@ class Request {
                     if (strlen($valueOfInput) > $length) {
                         array_push($errorMessages, $this->showValidationError($name, $ruleKey, $length));
                     }
+                } else if ($ruleKey == "ext") {
+                    $allowedExtensions = explode(",", strtolower($value[1]));
+                    $inputExtension = explode(".", $valueOfInput);
+                    $inputExtension = strtolower($inputExtension[count($inputExtension) - 1]);
+                    if (!in_array($inputExtension, $allowedExtensions)) {
+                        array_push($errorMessages, $this->showValidationError($name, $ruleKey, implode(",", $allowedExtensions)));
+                    }
                 }
             }
         }

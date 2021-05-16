@@ -12,4 +12,5 @@ return [
     'url' => "{field_name} field is not URL",
     'min' => "{field_name} field at least has {value} characters",
     'max' => "{field_name} field cannot contains more than {value} characters",
+    'ext' => "{field_name} file extension not allowed. Expected {value}"
 ];
