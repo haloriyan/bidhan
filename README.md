@@ -19,10 +19,17 @@ mv .env.example .env && vim .env
 3. Run the server
 
 ```
-php tolong serve
+php canyou serve
 ```
 
-and make sure your `BASE_URL` value in `.env` has same port as you used while starting server
+4. Change your git remote
+
+Due to you clone this repo, make sure you have deleted the default (`origin`) remote in cloned repository and use your own remote.
+
+```
+git remote remove origin
+git remote add origin {your-remote-url}
+```
 
 ## Learning
 
@@ -45,7 +52,7 @@ But if you can't find some information that you need to do, or you didn't get it
 
 ## Found a issue?
 
-Contribute and join into open-source community by reporting some issues that appears in fresh installation and/or when you developping an application. Send me an email to [riyan.satria.619@gmail.com](mailto:riyan.satria.619@gmail.com) to report any issues.
+Contribute and join to open-source community by reporting some issues that appears in fresh installation nor when you developing an application. Send me an email to [riyan.satria.619@gmail.com](mailto:riyan.satria.619@gmail.com) to report any issues.
 
 ## License
 

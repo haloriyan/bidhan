@@ -19,8 +19,8 @@ class Storage {
     }
     public function move($origin, $destination) {
 		global $rootPath;
-		$file = $rootPath."/".$origin;
-		$newFile = "../storage/".$destination;
+		$file = realpath($rootPath."/".$origin);
+		$newFile = $rootPath."/".$destination;
 		return rename($file, $newFile);
     }
     public function store($destination, $file, $overrideName = NULL) {

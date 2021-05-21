@@ -39,8 +39,28 @@ If the user changed their avatar, maybe you need to delete the old file due to s
 
 ```php
 public function changeAvatar() {
-    $oldAvatarFilename = 'aang.png';
+    $oldAvatarFileName = 'aang.png';
     
     $deleteOldAvatar = Storage::disk('avatars')->delete($oldAvatarFilename);
 }
+```
+
+## Moving file
+
+Nor you don't want to delete file and doing soft delete instead, you can use the `move()` method to your trash directory.
+
+```php
+public function changeAvatar() {
+    $filename = "aang.png";
+    $softDelete = Storage::disk('avatars')->move($filename, "../trash/".$filename);
+}
+```
+
+For make it clear, here the directory structure
+
+```
+- storage/
+--- avatars/
+------ aang.png
+--- trash/
 ```

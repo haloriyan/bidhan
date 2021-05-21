@@ -174,7 +174,7 @@ class Request {
         }
     }
     public function showValidationError($field_name, $errorType, $value = NULL) {
-        $messages = require '../config/validation_message.php';
+        $messages = require '../config/validation.php';
         $message = $messages[$errorType];
         $message = str_replace("{field_name}", $field_name, $message);
         if ($value != NULL) {
