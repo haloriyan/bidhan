@@ -215,6 +215,7 @@ class DB {
     }
     public function orderBy($kolom, $mode = NULL) {
         global $query;
+        self::checkIfTableStillNull();
         
         if(is_array($kolom)) {
             $query .= " ORDER BY ";
@@ -227,7 +228,10 @@ class DB {
         }else {
             $query .= " ORDER BY $kolom $mode";
         }
-        return $this;
+        if(self::$_instance === null) {
+            self::$_instance = new self;
+        }
+        return self::$_instance;
 	}
 	public function query($qry, $realQuery = NULL) {
         $dbHost = env('DB_HOST');
@@ -289,6 +293,7 @@ class DB {
 	}
     public function first() {
         global $query,$tabel;
+        self::checkIfTableStillNull();
         $kolom = func_get_args();
 		$printCol = "";
 		if (count($kolom) == 1) {
@@ -306,12 +311,21 @@ class DB {
 			}
         }
 
-        $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
+        $query = substr($query, 0, 1) . "SELECT ".$printCol." FROM ".$tabel." " . substr($query, 0);
 
         $runQuery = mysqli_query(self::$koneksi, $query);
 		$data = mysqli_fetch_assoc($runQuery);
-		if (!$data) return false;
+
+		// if (!$data) return false;
         $query = "";
+
+        $toCallClass = "\App\Models\\".Model::revertTableName($tabel);
+        $currentClass = new $toCallClass();
+        foreach ($data as $key => $item) {
+            if (in_array($key, $currentClass->hidden)) {
+                unset($data[$key]);
+            }
+        }
         
         if (count(self::$newQueueWith) != 0) {
             $data = $this->doRelationJobNew($data);
@@ -335,35 +349,57 @@ class DB {
             }
             $runQueryRelation = self::query($tesQuery);
 
-            while ($row = mysqli_fetch_assoc($runQueryRelation)) {
-                if ($relationshipType == "hasMany") {
-                    if (array_key_exists('childRelation', $queue)) {
-                        $childRelation = $queue['childRelation'];
-                        $childClass = $childRelation['foreignClass'];
-                        $childForeignKey = $childRelation['foreignKey'];
+            if ($runQueryRelation) {
+                $i = 0;
+                while ($row = mysqli_fetch_assoc($runQueryRelation)) {
+                    $iRelation = $i++;
+                    $foreign = new $foreignClass();
+                    foreach ($row as $key => $r) {
+                        if (in_array($key, $foreign->hidden)) {
+                            unset($row[$key]);
+                        }
+                    }
+                    if ($relationshipType == "hasMany") {
+                        $data[$queue['methodCaller']][] = $row;
+                        if (array_key_exists('childRelation', $queue)) {
+                            $childRelation = $queue['childRelation'];
+                            $childClass = $childRelation['foreignClass'];
+                            $childForeignKey = $childRelation['foreignKey'];
 
-                        $tabel = null;
-                        $ret = $childClass::where($childForeignKey, $row['id']);
-                        $childQuery = "SELECT * FROM " . $tabel . " WHERE " . $childForeignKey . " = " . $row['id'];
-                        $runChildQuery = self::query($childQuery);
+                            if ($childRelation['relationshipType'] == "belongsTo") {
+                                $childKey = "id";
+                                $childValue = $row[$childForeignKey];
+                            } else {
+                                $childKey = $childForeignKey;
+                                $childValue = $row['id'];
+                            }
 
-                        if ($runChildQuery) {
-                            if ($childRelation['relationshipType'] == "hasOne" || $childRelation == "belongsTo") {
-                                $child = mysqli_fetch_assoc($runChildQuery);
-                                $row[$queue['childRelation']['methodCaller']] = $child;
-                            }else {
-                                while ($child = mysqli_fetch_assoc($runChildQuery)) {
-                                    $row[$queue['childRelation']['methodCaller']][] = $child;
+                            $tabel = null;
+                            $ret = $childClass::where($childForeignKey, $row['id']);
+                            $childQuery = "SELECT * FROM " . $tabel . " WHERE " . $childKey . " = " . $childValue;
+                            $runChildQuery = self::query($childQuery);
+
+                            if ($runChildQuery) {
+                                if ($childRelation['relationshipType'] == "hasOne" || $childRelation == "belongsTo") {
+                                    $child = mysqli_fetch_assoc($runChildQuery);
+                                    $data[$queue['methodCaller']][$iRelation][$queue['childRelation']['methodCaller']] = $child;
+                                }else {
+                                    while ($child = mysqli_fetch_assoc($runChildQuery)) {
+                                        $data[$queue['methodCaller']][$iRelation][$queue['childRelation']['methodCaller']][] = $child;
+                                    }
                                 }
                             }
-                        }
 
-                        // $row[$queue['childRelation']['methodCaller']] = $childDatas;
-                        // echo $childDatas->toSql()."<br />";
+                            // $row[$queue['childRelation']['methodCaller']] = $childDatas;
+                            // echo $childDatas->toSql()."<br />";
+                        }
+                    }else if ($relationshipType == "belongsTo" || $relationshipType == "hasOne") {
+                        $data[$queue['methodCaller']] = $row;
                     }
-                    $data[$queue['methodCaller']][] = $row;
-                }else if ($relationshipType == "belongsTo" || $relationshipType == "hasOne") {
-                    $data[$queue['methodCaller']] = $row;
+
+                    if (array_key_exists('childRelation', $queue)) {
+                        $childRelation = $queue['childRelation'];
+                    }
                 }
             }
         }
@@ -393,14 +429,15 @@ class DB {
 		return json_decode(json_encode($datas), FALSE);
     }
     public static function checkIfTableStillNull() {
-        global $tabel;
-        if ($tabel == null) {
-            self::$calledClass = get_called_class();
-            Model::getTableName(self::$calledClass);
+        global $tabel,$toCallClass;
+        self::$calledClass = get_called_class();
+        $toCallClass = Model::getTableName(self::$calledClass);
+        if (($tabel == null || $tabel != $toCallClass) && $toCallClass != "d_bs") {
+            $tabel = $toCallClass;
         }
     }
     public function get($toSelect = null) {
-        global $query,$res,$withWith,$tabel;
+        global $query,$res,$withWith,$tabel,$toCallClass;
         if (self::$koneksi == null) {
             self::koneksi();
         }
@@ -423,16 +460,24 @@ class DB {
 			}
         }
         
-        $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
+        if (!self::isContain("SELECT", $query)) {
+            $query = substr($query, 0, 0) . "SELECT $printCol FROM $tabel " . substr($query, 1);
+        }
         
         $runQuery = mysqli_query(self::$koneksi, $query);
         $res = [];
+        
+        $toCallClass = "\App\Models\\".Model::revertTableName($tabel);
+        $currentClass = new $toCallClass();
+
         while($data = mysqli_fetch_assoc($runQuery)) {
-            // if (count(self::$queueWith) != 0) {
-            //     $data = $this->doRelationJob($data);
-            // }
             if (count(self::$newQueueWith) != 0) {
                 $data = $this->doRelationJobNew($data);
+            }
+            foreach ($data as $key => $item) {
+                if (in_array($key, $currentClass->hidden)) {
+                    unset($data[$key]);
+                }
             }
             $res[] = $data;
         }
@@ -443,13 +488,19 @@ class DB {
         return self::toObject($res);
     }
     public function paginate($rows) {
-        global $query,$res,$withWith,$paginateTotalPages;
+        global $query,$res,$withWith,$paginateTotalPages,$tabel;
+        self::checkIfTableStillNull();
+        if (self::$koneksi == null) {
+            self::koneksi();
+        }
         $page = isset($_GET['page']) ? $_GET['page'] : 1;
         $start = ($page > 1) ? ($page * $rows) - $rows : 0;
-        $total = mysqli_num_rows(mysqli_query(self::$koneksi, $query));
+        $query = substr($query, 0, 0) . "SELECT * FROM $tabel " . substr($query, 1);
+        $runQuery = mysqli_query(self::$koneksi, $query);
+        $total = mysqli_num_rows($runQuery);
         $paginateTotalPages = ceil($total / $rows);
 
-        if ($this->isContain("LIMIT", $query)) {
+        if (self::isContain("LIMIT", $query)) {
             $oldLim = explode("LIMIT", $query)[1];
             $query = str_replace(["LIMIT", $oldLim], ["LIMIT", " $start, $rows"], $query);
         }else {
@@ -462,38 +513,121 @@ class DB {
 
         // self::$collections = self::toObject($res);
         // return self::$collections;
-        return $this;
-        // return self::toObject($res);
+        if(self::$_instance === null) {
+            self::$_instance = new self;
+        }
+        return self::$_instance;
     }
-    public function links() {
+    public function printLink($itemClass, $action, $linkClass, $content) {
+        echo "<li class='$itemClass'>".
+                "<a href='$action' class='$linkClass'>".
+                    "<span>$content</span>".
+                "</a>".
+             "</li>";
+    }
+    public function links($style = 'bootstrap') {
+        $style = strtolower($style);
         $page = @$_GET['page'] != "" ? $_GET['page'] : 1;
         $prev = $page - 1;
         $next = $page + 1;
 
+        if ($style == "bootstrap") {
+            $elementName = "nav";
+            $containerClass = "pagination";
+            $itemClassDefault = "page-item";
+            $linkClass = "page-link";
+            $activeClass = "disabled";
+            $prevIcon = "&laquo;";
+            $nextIcon = "&raquo;";
+        } else if ($style == "materialize") {
+            $elementName = "ul";
+            $containerClass = "pagination";
+            $itemClassDefault = "waves-effect";
+            $activeClass = "active";
+            $linkClass = "";
+            $prevIcon = "<i class='material-icons'>chevron_left</i>";
+            $nextIcon = "<i class='material-icons'>chevron_right</i>";
+        } else if ($style == "bulma") {
+            $elementName = "nav";
+            $containerClass = "pagination";
+            $itemClassDefault = "";
+            $linkClass = "pagination-link";
+            $activeClass = "is-current";
+            $secondContainer = "pagination-list";
+        } else if ($style == "foundation") {
+            $elementName = "nav";
+            $secondContainer = "pagination text-center";
+            $itemClassDefault = "";
+            $customAttributes = "aria-label='Pagination'";
+            $activeClass = "current";
+            $prevIcon = "&laquo;";
+            $nextIcon = "&raquo;";
+        }
+
         if (count(self::$paginationLinks) > 1) {
-            echo "<div class='pagination_links'>";
-            if ($prev >= 1) {
-                echo "<a href='".base_url().route()."?page=".$prev."'><div class='items'><i class='fas fa-angle-left'></i></i></div></a>";
+            echo "<$elementName class='$containerClass' $customAttributes>";
+            if ($style == "foundation") {
+                echo "<ul class='$secondContainer'>";
             }
-            for ($i = 1; $i <= count(self::$paginationLinks); $i++) {
-                if ($page != $i) {
-                    echo "<a href='".base_url().route()."?page=$i'><div class='items'>$i</div></a>";
-                }else {
-                    echo "<div class='items active'>$i</div>";
+            if ($prev >= 1) {
+                if ($style == "bulma") {
+                    echo "<a class='pagination-previous' class='$linkClass' href='".route()."?page=$prev'>Previous</a>";
+                } else {
+                    self::printLink($itemClassDefault, route()."?page=$prev", $linkClass, $prevIcon);
                 }
             }
-            if ($next <= count(self::$paginationLinks)) {
-                echo "<a href='".base_url().route()."?page=".$next."'><div class='items'><i class='fas fa-angle-right'></i></i></div></a>";
+            if ($style == "bulma") {
+                if ($next <= count(self::$paginationLinks)) {
+                    echo "<a class='pagination-next' class='$linkClass' href='".route()."?page=$next'>Next</a>";
+                }
             }
-            echo "</div>";
+            if ($style == "bulma") {
+                echo "<ul class='$secondContainer'>";
+            }
+            for ($i = 1; $i <= count(self::$paginationLinks); $i++) {
+                $itemClass = $itemClassDefault;
+                $linkClassCurrent = $linkClass;
+
+                if ($page != $i) {
+                    $link = route()."?page=$i";
+                } else {
+                    if ($style == "bulma") {
+                        $linkClassCurrent .= " $activeClass";
+                    } else {
+                        $itemClass .= " $activeClass";
+                    }
+                    $link = "#";
+                }
+                self::printLink($itemClass, $link, $linkClassCurrent, $i);
+            }
+            if ($next <= count(self::$paginationLinks)) {
+                if ($style != "bulma") {
+                    self::printLink($itemClassDefault, route()."?page=$next", $linkClass, $nextIcon);
+                }
+            }
+            if ($style == "bulma" || $style == "foundation") {
+                echo "</ul>";
+            }
+            echo "</$elementName>";
+            
+            // echo "<div class='pagination_links'>";
+            // if ($prev >= 1) {
+            //     echo "<a href='".route()."?page=".$prev."'><div class='items'><i class='fas fa-angle-left'></i></i></div></a>";
+            // }
+            // for ($i = 1; $i <= count(self::$paginationLinks); $i++) {
+            //     if ($page != $i) {
+            //         echo "<a href='".route()."?page=$i'><div class='items'>$i</div></a>";
+            //     }else {
+            //         echo "<div class='items active'>$i</div>";
+            //     }
+            // }
+            // if ($next <= count(self::$paginationLinks)) {
+            //     echo "<a href='".base_url().route()."?page=".$next."'><div class='items'><i class='fas fa-angle-right'></i></i></div></a>";
+            // }
+            // echo "</div>";
         }
     }
     
-    public function withOld($table, $fk) {
-        global $res,$withWith;
-        array_push(self::$queueWith, [$table, $fk]);
-        return $this;
-    }
     public function with($relationName) {
         self::checkIfTableStillNull();
         if (is_array($relationName)) {
@@ -548,7 +682,7 @@ class DB {
                 array_push(self::$newQueueWith, $relation);
             }
         }
-        
+
         if(self::$_instance === null) {
             self::$_instance = new self;
         }
@@ -556,6 +690,7 @@ class DB {
     }
     public function find($id) {
         global $query,$tabel;
+        self::checkIfTableStillNull();
         $query .= "SELECT * FROM $tabel WHERE id = '$id'";
         $runQuery = mysqli_query(self::$koneksi, $query);
         $data = mysqli_fetch_assoc($runQuery);
@@ -565,6 +700,7 @@ class DB {
 
     public function increment($column, $counter = 1) {
         global $query,$tabel;
+        self::checkIfTableStillNull();
 
         $query = substr($query, 0, 1) . "$column = $column + $counter " . substr($query, 1);
         $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);
@@ -573,6 +709,7 @@ class DB {
     }
     public function decrement($column, $counter = 1) {
         global $query,$tabel;
+        self::checkIfTableStillNull();
 
         $query = substr($query, 0, 1) . "$column = $column - $counter " . substr($query, 1);
         $query = substr($query, 0, 0) . "UPDATE $tabel SET " . substr($query, 1);

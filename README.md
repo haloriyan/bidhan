@@ -35,10 +35,10 @@ git remote add origin {your-remote-url}
 
 I have created documentation for every helper, either you willing to read it or not.
 
-- [Auth](./docs/Auth.md)
+- [Auth](./docs/Authentication.md)
 - [Basic Function](./docs/Basic.md)
 - [Controller](./docs/Controller.md)
-- [Database (Query Builder, Relationship, and Pagination)](./docs/Database.md)
+- [Database (Query Builder, Relationship, and Pagination)](./docs/Database/Introduction.md)
 - [Deployment](./docs/Deployment.md)
 - [File Storage](./docs/File_Storage.md)
 - [Mailing](./docs/Mailing.md)
@@ -52,7 +52,7 @@ But if you can't find some information that you need to do, or you didn't get it
 
 ## Found a issue?
 
-Contribute and join to open-source community by reporting some issues that appears in fresh installation nor when you developing an application. Send me an email to [riyan.satria.619@gmail.com](mailto:riyan.satria.619@gmail.com) to report any issues.
+Contribute and join to open-source community by reporting some issues that appears in fresh installation nor when you developing an application. Please open new issue and explain the bug you experince. 
 
 ## License
 
