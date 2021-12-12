@@ -70,7 +70,7 @@ Route::get('/profile', "UserController@profile")->name('profile');
 redirect(route('profile'));
 ```
 
-> Every route cannot be has same name. Make sure it is unique when write the route name
+> Every route cannot has a same name. Make sure it is unique when write the route name
 
 #### Get the full URL
 

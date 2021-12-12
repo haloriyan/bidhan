@@ -2,7 +2,7 @@
 
 The core of application obviously CRUD, stands for `Create`, `Read`, `Update`, and `Delete`. And before we get started, make sure you have read `/docs/Database/Introduction.md` to understand about database and model.
 
-And also make sure you have inserted your generated model into controller.
+And also make sure you have included your model inside controller.
 
 ```php
 use App\Models\Product;
@@ -23,11 +23,12 @@ class ProductController {
 }
 ```
 
-For this version, you don't have to define `$fillable` property in `Product` model. But you need to remember what field is required to be filled or you will get mysql error on console.
+You don't have to define `$fillable` property in `Product` model. But you need to remember what field is required to be filled or you will get mysql error on console.
 
 ### Read
 
-Basicly we have two methods to reading data, `first()` and `get()`.  The `first` method will return single collection, and `get` method will return array collection.
+Basically we have two methods to reading data, `first()` and `get()`.  The `first` method will return single collection, and `get` method will return array collection.
+
 
 ```php
 class ProductController {
@@ -37,6 +38,32 @@ class ProductController {
     public function getProductById($productID) {
         return Product::where('id', $productID)->first();
     }
+}
+```
+Result of `get()` :
+
+```json
+[
+    {
+        id: 1,
+        name: "iPhone 4s",
+        price: 199
+    },
+    {
+        id: 1,
+        name: "Playstation 5",
+        price: 399
+    },
+]
+```
+
+Result of `first()` :
+
+```json
+{
+    id: 1,
+    name: "iPhone 4s",
+    price: 199
 }
 ```
 
