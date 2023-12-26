@@ -45,7 +45,7 @@ I have created documentation for every helper, either you willing to read it or 
 - [Middleware](./docs/Middleware.md)
 - [Migration](./docs/Migration.md)
 - [Request](./docs/Request.md)
-- [Routes](./docs/Routes.md)
+- [Routes](./docs/Route.md)
 - [Validation](./docs/Validation.md)
 
 But if you can't find some information that you need to do, or you didn't get it yet, feel free to ask to me question.
